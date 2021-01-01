@@ -6,6 +6,7 @@ Example - navigating to https://example.com and saving a screenshot as example.p
 
 Save file as example.js
 
+```
 
 const puppeteer = require('puppeteer');
 
@@ -17,3 +18,5 @@ const puppeteer = require('puppeteer');
 
   await browser.close();
 })();
+
+````
