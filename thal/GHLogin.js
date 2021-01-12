@@ -11,6 +11,8 @@ const LISTEMAIL_SELECTOR = '#user_search_results > div.user-list > div:nth-child
 
 const LENGTH_SELECTOR_CLASS = 'user-list-item';
 
+const NUMUSERS_SELECTOR = '#js-pjax-container > div > div.col-12.col-md-9.float-left.px-2.pt-3.pt-md-0.codesearch-results > div > div.d-flex.flex-column.flex-md-row.flex-justify-between.border-bottom.pb-3.position-relative > h3'
+
 async function run() {
   const browser = await puppeteer.launch({
     headless: false
@@ -32,33 +34,66 @@ async function run() {
   await page.goto(searchUrl);
   await page.waitFor(2*1000);
 
-  let listLength = await page.evaluate((sel) => {
-    return document.getElementsByClassName(sel).length;
-  }, LENGTH_SELECTOR_CLASS);
+  let numPages = await getNumPages(page);
 
-  for (let i = 1; i <= listLength; i++) {
-    // change the index to the next child
-    let usernameSelector = LISTNAME_SELECTOR.replace("INDEX", i);
-    let emailSelector = LISTEMAIL_SELECTOR.replace("INDEX", i);
+  console.log('Numpages: ', numPages);
 
-    let username = await page.evaluate((sel) => {
-        return document.querySelector(sel).getAttribute('href').replace('/', '');
-      }, usernameSelector);
+  for (let h = 1; h <= numPages; h++) {
 
-    let email = await page.evaluate((sel) => {
-        let element = document.querySelector(sel);
-        return element? element.innerHTML: null;
-      }, emailSelector);
+  	let pageUrl = searchUrl + '&p=' + h;
 
-    // not all users have emails visible
-    if (!email)
-      continue;
+  	await page.goto(pageUrl);
 
-    console.log(username, ' -> ', email);
+    let listLength = await page.evaluate((sel) => {
+      return document.getElementsByClassName(sel).length;
+    }, LENGTH_SELECTOR_CLASS);
 
-    // TODO save this user
+    for (let i = 1; i <= listLength; i++) {
+      // change the index to the next child
+      let usernameSelector = LISTNAME_SELECTOR.replace("INDEX", i);
+      let emailSelector = LISTEMAIL_SELECTOR.replace("INDEX", i);
+
+      let username = await page.evaluate((sel) => {
+          return document.querySelector(sel).getAttribute('href').replace('/', '');
+        }, usernameSelector);
+
+      let email = await page.evaluate((sel) => {
+          let element = document.querySelector(sel);
+          return element? element.innerHTML: null;
+        }, emailSelector);
+
+      // not all users have emails visible
+      if (!email)
+        continue;
+
+      console.log(username, ' -> ', email);
+
+      // TODO save this user
+    }
+
+    //getNumPages(page);
+    //browser.close();
   }
-  browser.close();
+}
+
+async function getNumPages(page) {
+
+  let inner = await page.evaluate((sel) => {
+    let html = document.querySelector(sel).innerHTML;
+
+    // format is: "69,803 users"
+    return html.replace(',', '').replace('users', '').trim();
+  }, NUMUSERS_SELECTOR);
+
+  let numUsers = parseInt(inner);
+
+  console.log('numUsers: ', numUsers);
+
+  /*
+  * GitHub shows 10 resuls per page, so
+  */
+  let numPages = Math.ceil(numUsers / 10);
+  return numPages;
 }
 
 run();
