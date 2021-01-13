@@ -1,6 +1,8 @@
 
 const puppeteer = require('puppeteer');
 const CREDS = require('./creds');
+const mongoose = require('mongoose');
+const User = require('./models/user');
 const userToSearch = 'john';
 const searchUrl = `https://github.com/search?q=${userToSearch}&type=users`;
 const USERNAME_SELECTOR = '#login_field';
@@ -66,8 +68,12 @@ async function run() {
       if (!email)
         continue;
 
-      console.log(username, ' -> ', email);
-
+      //console.log(username, ' -> ', email);
+      upsertUser({
+        username: username,
+        email: email,
+        dateCrawled: new Date()
+      });
       // TODO save this user
     }
 
@@ -94,6 +100,21 @@ async function getNumPages(page) {
   */
   let numPages = Math.ceil(numUsers / 10);
   return numPages;
+}
+
+function upsertUser(userObj) {
+
+	const DB_URL = 'mongodb://localhost/thal';
+
+  	if (mongoose.connection.readyState == 0) { mongoose.connect(DB_URL); }
+
+    	// if this email exists, update the entry, don't insert
+	let conditions = { email: userObj.email };
+	let options = { upsert: true, new: true, setDefaultsOnInsert: true };
+
+  	User.findOneAndUpdate(conditions, userObj, options, (err, result) => {
+  		if (err) throw err;
+  	});
 }
 
 run();
