@@ -113,5 +113,4 @@ function upsertPost(userObj) {
   		if (err) throw err;
   	});
 }
-
 stephenBlogScrape();
