@@ -1,6 +1,8 @@
 const puppeteer = require('puppeteer');
+const fs = require('fs');
 const searchUrl='http://btcocktails.blogspot.com/search?updated-max=DATESTARTT00:00:00-07:00'
 const mongoose = require('mongoose');
+const OUTFILE = './output/articles.txt';
 const Post = require('./models/Post');
 const FIRSTBLOG = 20150724;
 const TITLE_SELECTOR = '#Blog1 > div.blog-posts.hfeed > div:nth-child(INDEX) > div > div > div > h3 > a';
@@ -8,6 +10,10 @@ const DATE_SELECTOR = '#Blog1 > div.blog-posts.hfeed > div:nth-child(INDEX) > h2
 const AUTHOR_SELECTOR = '#Blog1 > div.blog-posts.hfeed > div:nth-child(INDEX) > div > div > div > div.post-footer > div.post-footer-line.post-footer-line-1 > span.post-author.vcard > span > a > span';
 
 const LENGTH_SELECTOR_CLASS = 'date-outer';
+
+// Make Mongoose use `findOneAndUpdate()`. Note that this option is `true`
+// by default, you need to set it to false.
+mongoose.set('useFindAndModify', false);
 
 async function stephenBlogScrape() {
   const browser = await puppeteer.launch();
@@ -69,15 +75,23 @@ async function stephenBlogScrape() {
 
       startDate = new Date(date);
 
-      upsertPost({
-        title: title,
-        author: author,
-        dateCreated: date,
-        dateCrawled: new Date()
+      //if this exists then dont write to output or db
+      fs.readFile(OUTFILE, function (err, data) {
+        if (err) throw err;
+        if (data.indexOf(title) < 0){
+          //if(!doesExist(title)){
+            upsertPost({
+              title: title,
+              author: author,
+              dateCreated: date,
+              dateCrawled: new Date()
+            });
+            fs.appendFile(OUTFILE, title + ' -> ' + date + ' -> ' + author + '\n\n', function (err) {
+              if (err) return console.log(err);});
+            console.log('NEW ENTRY: ' + title, ' -> ', date, ' -> ', author);
+          //}
+        }
       });
-      //console.log(title, ' -> ', date, ' -> ', author);
-
-    }
     // current date
     // adjust 0 before single digit date
     let dayNumber = ('0' + startDate.getDate()).slice(-2);
@@ -95,8 +109,9 @@ async function stephenBlogScrape() {
     let numDateStr = beginDate.replaceAll('-', '');
 
     let numDate = parseInt(numDateStr);
-    console.log(numDate);
+    //console.log(numDate);
   }
+}
 }
 
 function upsertPost(userObj) {
@@ -113,4 +128,5 @@ function upsertPost(userObj) {
   		if (err) throw err;
   	});
 }
+
 stephenBlogScrape();
